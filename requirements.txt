@@ -1,0 +1,21 @@
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Embeddings and NLP
+sentence-transformers
+langchain
+
+# Environment variables
+python-dotenv
+
+# Utilities
+numpy
+pydantic
+
+# Optional: for vector similarity search (faster than raw Postgres)
+faiss-cpu
