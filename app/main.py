@@ -3,7 +3,7 @@ from app.routes.chat import router as chat_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.utils import query_response_cache
 
-app = FastAPI()
+app = FastAPI(title="AI Chat Engine - Dev")
 
 # For development, allow all origins. Change this in production.
 app.add_middleware(
