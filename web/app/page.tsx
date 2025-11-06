@@ -89,10 +89,10 @@ export default function Page() {
         pushMessage({
           id: makeId('b_'),
           from: 'bot',
-          text: 'Hi there! I'm Chatty, how can I assist you today?',
+          text: "Hi there! I'm Chatty, how can I assist you today?",
           time: nowLabel(),
           meta: {
-            answer: 'Hi there! I'm Chatty, how can I assist you today?',
+            answer: "Hi there! I'm Chatty, how can I assist you today?",
             confidence: 1.0,
             sources: [],
             cached: false,
