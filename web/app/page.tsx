@@ -61,7 +61,6 @@ export default function Page() {
     fetchWelcome();
   }, []); // empty deps = run once on mount
 
-
   // ensure latest message is visible
   useEffect(() => {
     if (messagesEndRef.current) {
