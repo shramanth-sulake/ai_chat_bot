@@ -8,7 +8,7 @@ psycopg2-binary
 
 # Embeddings and NLP
 sentence-transformers
-langchain
+langchain==0.1.16
 tiktoken
 langchain-text-splitters
 
