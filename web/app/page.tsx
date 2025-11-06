@@ -28,6 +28,14 @@ type Message = {
 
 export default function Page() {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  
+  // Log API URL on component mount
+  useEffect(() => {
+    console.log('Environment:', {
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+      API_BASE: API_BASE
+    });
+  }, [API_BASE]);
 
   const [question, setQuestion] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -37,16 +45,37 @@ export default function Page() {
   // ref to container for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch welcome message on mount
+    // Fetch welcome message on mount
   useEffect(() => {
     async function fetchWelcome() {
       try {
-        const resp = await fetch(`${API_BASE}/chat/`);
+        console.log('Fetching welcome from:', `${API_BASE}/chat/`);
+        
+        const resp = await fetch(`${API_BASE}/chat/`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Origin': window.location.origin
+          },
+          credentials: 'omit'  // Don't send credentials for GET
+        });
+        
+        // Log full response details
+        console.log('Welcome response:', {
+          status: resp.status,
+          statusText: resp.statusText,
+          headers: Object.fromEntries(resp.headers.entries())
+        });
+
         if (!resp.ok) {
-          throw new Error('Failed to fetch welcome message');
+          const errorText = await resp.text();
+          console.error('Error response body:', errorText);
+          throw new Error(`Failed to fetch welcome: ${resp.status}`);
         }
+
         const data = await resp.json() as ChatResponse;
-        // Add welcome message to chat
+        console.log('Welcome data:', data);
+        
         pushMessage({
           id: makeId('b_'),
           from: 'bot',
@@ -56,10 +85,24 @@ export default function Page() {
         });
       } catch (err) {
         console.error('Error fetching welcome:', err);
+        // Show fallback welcome even if API fails
+        pushMessage({
+          id: makeId('b_'),
+          from: 'bot',
+          text: 'Hi there! How can I help you today?',
+          time: nowLabel(),
+          meta: {
+            answer: 'Hi there! How can I help you today?',
+            confidence: 1.0,
+            sources: [],
+            cached: false,
+            follow_up: null
+          }
+        });
       }
     }
     fetchWelcome();
-  }, []); // empty deps = run once on mount
+  }, [API_BASE]); // include API_BASE in deps
 
   // ensure latest message is visible
   useEffect(() => {
