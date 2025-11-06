@@ -11,7 +11,8 @@ EXCEL_PATH = os.path.join("data", "Dialogflow_Chatbot_Training_Template_with_Vid
 
 # common names to check for follow-up fields (case-insensitive)
 FOLLOWUP_COL_CANDIDATES = {
-    "followup", "follow_ups", "follow_ups", "follow-up", "followups",
+    "Follow-up Prompts",  # exact match from your Excel
+    "followup", "follow_ups", "follow-ups", "follow-up", "followups",
     "clarifyingquestion", "clarifying_question", "clarifying question",
     "follow_up", "FollowUp", "Follow_Up", "Follow Ups", "Followups",
     "next question", "next_question", "clarify", "clarification"
@@ -58,30 +59,53 @@ def extract_passages_from_excel(path: str) -> List[Dict]:
 
     for sheet in xls.sheet_names:
         df = xls.parse(sheet_name=sheet, dtype=str).fillna("")
-        followup_col = find_followup_column(df.columns)
+        
+        # Key columns from your template
+        response_col = "Response (Short, Natural)"
+        intent_col = "Intent Name"
+        training_col = "Training Phrases (Examples)"
+        followup_col = "Follow-up Prompts"
+        category_col = "Service Category"
+        
         for idx, row in df.iterrows():
-            # Build text from columns: you can customize which column(s) to use.
-            # If your sheet has a particular 'Description' or 'Response' column, prefer that.
-            # Otherwise join all non-empty columns into a single passage.
-            pairs = []
-            for col in df.columns:
-                v = str(row[col]).strip()
-                if v and (followup_col is None or col != followup_col):
-                    pairs.append(f"{col}: {v}")
-            if not pairs:
-                continue
-            text = "  |  ".join(pairs)
-
+            # Primary response text (most important)
+            response_text = str(row.get(response_col, "")).strip()
+            if not response_text:
+                continue  # Skip if no response text
+                
+            # Build rich context
+            context_parts = []
+            
+            # Add intent and category if available
+            intent = str(row.get(intent_col, "")).strip()
+            category = str(row.get(category_col, "")).strip()
+            if intent:
+                context_parts.append(f"Intent: {intent}")
+            if category:
+                context_parts.append(f"Category: {category}")
+                
+            # Add training phrases if available
+            training = str(row.get(training_col, "")).strip()
+            if training:
+                phrases = split_followups_cell(training)  # reuse splitter for pipe-separated phrases
+                if phrases:
+                    context_parts.append(f"Example Questions: {', '.join(phrases)}")
+            
+            # Combine context with response
+            text = f"{' | '.join(context_parts)}\n\nResponse: {response_text}"
+            
+            # Extract followups
             followups = []
-            if followup_col:
+            if followup_col in df.columns:
                 raw = str(row[followup_col]).strip()
-                followups = split_followups_cell(raw)
-
+                if raw:
+                    followups = split_followups_cell(raw)
+                    
             all_passages.append({
                 "doc": doc_name,
                 "sheet": sheet,
                 "row": int(idx),
-                "col": ", ".join([c for c in df.columns if str(row[c]).strip()]),
+                "col": ", ".join([response_col, intent_col, category_col, training_col, followup_col]),
                 "text": text,
                 "followups": followups
             })
