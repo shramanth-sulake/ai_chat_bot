@@ -37,6 +37,31 @@ export default function Page() {
   // ref to container for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Fetch welcome message on mount
+  useEffect(() => {
+    async function fetchWelcome() {
+      try {
+        const resp = await fetch(`${API_BASE}/chat/`);
+        if (!resp.ok) {
+          throw new Error('Failed to fetch welcome message');
+        }
+        const data = await resp.json() as ChatResponse;
+        // Add welcome message to chat
+        pushMessage({
+          id: makeId('b_'),
+          from: 'bot',
+          text: data.answer || 'Hi there!',
+          time: nowLabel(),
+          meta: data
+        });
+      } catch (err) {
+        console.error('Error fetching welcome:', err);
+      }
+    }
+    fetchWelcome();
+  }, []); // empty deps = run once on mount
+
+
   // ensure latest message is visible
   useEffect(() => {
     if (messagesEndRef.current) {
