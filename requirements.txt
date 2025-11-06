@@ -13,7 +13,7 @@ tiktoken
 langchain-text-splitters
 langchain-core
 langchain-community
-
+openai<1.0.0
 
 
 # Environment variables
