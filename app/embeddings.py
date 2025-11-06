@@ -16,7 +16,7 @@ import json
 import numpy as np
 
 # LangChain text splitter (helps with robust chunking)
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitters import RecursiveCharacterTextSplitter
 
 # SentenceTransformers embedding model
 from sentence_transformers import SentenceTransformer
