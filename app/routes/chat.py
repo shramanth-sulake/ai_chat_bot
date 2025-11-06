@@ -8,7 +8,6 @@ from app.search_db import search_db as search
 from app.llm_manager import generate_answer
 from app.utils import make_cache_key, query_response_cache, compute_confidence_from_scores
 from app.filters import redact_text, is_disallowed
-from app.followup_manager import followup_manager
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
