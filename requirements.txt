@@ -11,6 +11,8 @@ sentence-transformers
 langchain==0.1.16
 tiktoken
 langchain-text-splitters
+langchain-core
+langchain-community
 
 
 
