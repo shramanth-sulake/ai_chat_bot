@@ -34,10 +34,11 @@ PROMPT_USER_TEMPLATE = (
 
 def generate_answer(question: str, chunks: List[str]) -> str:
     """
-    Generate an answer given a user question and a list of retrieved chunks.
-    Uses the new OpenAI Python client (>=1.0.0).
+    Generate an answer given a user question and a list of retrieved text chunks (strings).
     """
+    # Here chunks are already strings → no need to index
     context = "\n\n---\n\n".join(chunks)
+
     user_prompt = PROMPT_USER_TEMPLATE.format(context=context, question=question)
 
     messages = [
@@ -45,7 +46,6 @@ def generate_answer(question: str, chunks: List[str]) -> str:
         {"role": "user", "content": user_prompt},
     ]
 
-    # New client call
     resp = client.chat.completions.create(
         model=LLM_MODEL,
         messages=messages,
@@ -55,6 +55,7 @@ def generate_answer(question: str, chunks: List[str]) -> str:
         top_p=1.0,
     )
 
-    # Extract the content (same idea as old SDK; response shape uses .choices[0].message.content)
-    answer = resp.choices[0].message.content.strip()
-    return answer
+    return resp.choices[0].message.content.strip()
+
+
+    
