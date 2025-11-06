@@ -10,6 +10,8 @@ psycopg2-binary
 sentence-transformers
 langchain
 tiktoken
+langchain-text-splitters
+
 
 
 # Environment variables
