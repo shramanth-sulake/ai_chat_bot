@@ -9,6 +9,8 @@ psycopg2-binary
 # Embeddings and NLP
 sentence-transformers
 langchain
+tiktoken
+
 
 # Environment variables
 python-dotenv
