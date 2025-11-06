@@ -150,10 +150,22 @@ export default function Page() {
     setQuestion("");
 
     try {
+      console.log('Sending question to:', `${API_BASE}/chat/`);
       const resp = await fetch(`${API_BASE}/chat/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({ user_id: "web_user", question: questionText }),
+        credentials: 'omit',  // Don't send credentials
+        mode: 'cors'  // Explicitly request CORS mode
+      });
+      
+      console.log('Response details:', {
+        status: resp.status,
+        statusText: resp.statusText,
+        headers: Object.fromEntries(resp.headers.entries())
       });
 
       if (!resp.ok) {
