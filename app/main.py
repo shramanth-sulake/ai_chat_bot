@@ -1,25 +1,24 @@
 from fastapi import FastAPI
 from app.routes.chat import router as chat_router
 from fastapi.middleware.cors import CORSMiddleware
+from app.utils import query_response_cache
 
 app = FastAPI(title="AI Chat Engine - Dev")
 
-origins = [
-    "http://localhost:3000",              # dev Next.js
-    "http://127.0.0.1:3000",              # sometimes used
-    "https://your-vercel-app.vercel.app", # add your production domain later
-    "https://your-netlify-app.netlify.app"
-]
-
+# For development, allow all origins. Change this in production.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # use ["*"] for quick dev but not recommended for prod
-    allow_credentials=True,
+    allow_origins=["*"],  # Temporarily allow all origins for testing
+    allow_credentials=False,  # Must be False when using allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # Expose all headers for debugging
 )
 
 app.include_router(chat_router)
+
+# Clear in-memory dev cache on startup so code changes show immediately
+query_response_cache.clear()
 
 @app.get("/")
 def read_root():
