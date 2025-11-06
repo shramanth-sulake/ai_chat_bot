@@ -1,3 +1,5 @@
+# app/routes/chat.py
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -8,7 +10,7 @@ from app.utils import make_cache_key, query_response_cache, compute_confidence_f
 from app.filters import redact_text, is_disallowed
 from app.followup_manager import followup_manager
 
-router = APIRouter(prefix="/chat", tags=["chat"]) 
+router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 @router.get("/")
@@ -26,7 +28,7 @@ def welcome_message():
 
 
 # -------------------------------
-# Pydantic models
+# Pydantic Models
 # -------------------------------
 class ChatRequest(BaseModel):
     user_id: str
@@ -39,27 +41,23 @@ class ChatResponse(BaseModel):
     confidence: float = 0.0
     sources: List[str] = []
     cached: bool = False
-    follow_up: Optional[str] = None  # Single most relevant followup (text)
-    followups: List[Dict[str, Any]] = []  # List of all relevant followups (objects with text & score)
+    follow_up: Optional[str] = None
+    followups: List[Dict[str, Any]] = []
     redacted: bool = False
 
 
-# -------------------------------
-# Constants
-# -------------------------------
-CONFIDENCE_THRESHOLD = 0.35   # below this -> low confidence (adjust with real data)
+CONFIDENCE_THRESHOLD = 0.35
 
 
 # -------------------------------
-# Chat endpoint
+# Chat Endpoint
 # -------------------------------
 @router.post("/", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest):
-    # 1) Input validation
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="question is empty")
 
-    # 2) Cache check
+    # 1) Check Cache
     cache_key = make_cache_key(req.user_id, req.question)
     cached = query_response_cache.get(cache_key)
     if cached:
@@ -67,23 +65,17 @@ def chat_endpoint(req: ChatRequest):
         resp.cached = True
         return resp
 
-    # 3) Retrieve top chunks + similarity scores
-    results = search(req.question, top_k=req.top_k)  # returns [(chunk_dict, score), ...]
+    # 2) Retrieve Top Chunks
+    results = search(req.question, top_k=req.top_k)
     if not results:
         return ChatResponse(
-            answer="I don't have specific information about that topic. However, I can tell you about our services like CX audits, website migrations, branding, or digital marketing. Which would you like to know more about?",
-            confidence=0.0, 
+            answer="I don't have enough information on that yet.",
+            confidence=0.0,
             sources=[],
-            follow_up="Would you like to learn about our core services?",
-            followups=[
-                {"text": "Can you tell me about your CX audit service?", "score": 0.8},
-                {"text": "What website migration services do you offer?", "score": 0.75},
-                {"text": "What branding services do you provide?", "score": 0.7},
-                {"text": "How can you help with digital marketing?", "score": 0.68}
-            ]
+            follow_up="Would you like to ask something else?",
+            followups=[]
         )
 
-    # 4) Extract texts, scores, and sources
     texts = [r[0]["text"] for r in results]
     scores = [r[1] for r in results]
     sources = [
@@ -91,42 +83,48 @@ def chat_endpoint(req: ChatRequest):
         for r in results
     ]
 
-    # 5) Compute confidence
+    # 3) Confidence
     confidence = compute_confidence_from_scores(scores)
 
-    # 6) Get followups
-    relevant_followups = followup_manager.find_relevant_followups(
-        question=req.question,
-        chunks=results,
-        max_followups=3,
-        similarity_threshold=0.5 if confidence >= CONFIDENCE_THRESHOLD else 0.3
-    )
-    
-    # 7) Handle low-confidence cases
-    if confidence < CONFIDENCE_THRESHOLD:
-        # Use first followup text if available, otherwise use default message
-        if relevant_followups:
-            followup_text = relevant_followups[0].get("text")
-        else:
-            followup_text = "I couldn't find a confident answer — can you provide more details or rephrase?"
+    # 4) Derive followups from chunks
+    relevant_followups = []
+    for chunk, score in results:
+        if "followups" in chunk and chunk["followups"]:
+            # Normalize: ensure always list of strings
+            if isinstance(chunk["followups"], list):
+                for f in chunk["followups"]:
+                    if isinstance(f, str):
+                        relevant_followups.append({"text": f, "score": score})
+            elif isinstance(chunk["followups"], str):
+                relevant_followups.append({"text": chunk["followups"].strip(), "score": score})
 
+    # Sort follow-ups by similarity score descending
+    relevant_followups.sort(key=lambda x: x["score"], reverse=True)
+    # Pick the top one if exists
+    follow_up = (
+        relevant_followups[0]["text"]
+        if relevant_followups and isinstance(relevant_followups[0]["text"], str)
+        else None
+    )
+
+    # 5) Low Confidence -> Ask follow-up instead of answering
+    if confidence < CONFIDENCE_THRESHOLD:
         resp = ChatResponse(
             answer=None,
             confidence=confidence,
-            sources=sources[:1],  # Only include the top source
-            follow_up=followup_text,
-            followups=relevant_followups,
+            sources=sources[:1],
+            follow_up=follow_up,
+            followups=relevant_followups[:3],
             redacted=False
         )
         query_response_cache.set(cache_key, resp.dict())
         return resp
 
-    # 8) Generate answer via LLM
+    # 6) Generate Answer from LLM
     answer = generate_answer(req.question, texts)
 
-    # 9) Handle disallowed content
     if is_disallowed(answer):
-        resp = ChatResponse(
+        return ChatResponse(
             answer="I cannot provide that information.",
             confidence=0.0,
             sources=[],
@@ -134,33 +132,18 @@ def chat_endpoint(req: ChatRequest):
             followups=[],
             redacted=False
         )
-        query_response_cache.set(cache_key, resp.dict())
-        return resp
 
-    # 10) Handle redaction
     redacted_answer, had_redaction = redact_text(answer)
 
-    # 11) Build final response
-    try:
-        resp = ChatResponse(
-            answer=redacted_answer if redacted_answer else None,
-            confidence=float(confidence),
-            sources=sources[:5],  # Limit sources to avoid overflow
-            follow_up=(relevant_followups[0].get("text") if relevant_followups else None),
-            followups=[f for f in relevant_followups if isinstance(f, dict) and isinstance(f.get("text"), str)][:3],
-            redacted=bool(had_redaction)
-        )
-    except Exception as e:
-        # Fallback to minimal response if serialization fails
-        resp = ChatResponse(
-            answer="An error occurred while processing the response",
-            confidence=0.0,
-            sources=[],
-            follow_up=None,
-            followups=[],
-            redacted=False
-        )
+    # 7) Final Successful Response
+    resp = ChatResponse(
+        answer=redacted_answer or None,
+        confidence=float(confidence),
+        sources=sources[:5],
+        follow_up=follow_up,
+        followups=relevant_followups[:3],
+        redacted=bool(had_redaction)
+    )
 
-    # 12) Cache and return
     query_response_cache.set(cache_key, resp.dict())
     return resp
