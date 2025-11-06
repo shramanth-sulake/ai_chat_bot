@@ -20,7 +20,7 @@ TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 
 PROMPT_SYSTEM = (
     "You are an assistant that answers using ONLY the provided context. "
-    "If the answer cannot be found in the context, respond with: \"I don't know.\" "
+    #"If the answer cannot be found in the context, respond with: \"I don't know.\" "
     "Keep the answer concise and factual."
     "Do NOT repeat the context verbatim — instead, paraphrase the policy in 1-2 sentences."
 )
